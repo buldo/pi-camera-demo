@@ -20,5 +20,11 @@ message(STATUS "    libraries: ${LIBCAMERA_LINK_LIBRARIES}")
 message(STATUS "    include path: ${LIBCAMERA_INCLUDE_DIRS}")
 include_directories(${CMAKE_SOURCE_DIR} ${LIBCAMERA_INCLUDE_DIRS} )
 
+# drm
+pkg_check_modules(LIBDRM REQUIRED libdrm)
+message(STATUS "LIBDRM_LINK_LIBRARIES=${LIBDRM_LINK_LIBRARIES}")
+include_directories(${LIBDRM_INCLUDE_DIRS})
+message(STATUS "LIBDRM display mode enabled")
+
 # Include sub-projects.
 add_subdirectory ("pi-camera-demo")
