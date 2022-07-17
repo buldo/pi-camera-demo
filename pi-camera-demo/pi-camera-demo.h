@@ -12,13 +12,6 @@
 
 // TODO: Reference additional headers your program requires here.
 static void check_camera_stack();
-void OpenCamera();
-void ConfigureVideo();
-void StartCamera();
-void SetupCapture();
-void MakeRequests();
-void RequestComplete(libcamera::Request* request);
-
 
 void DoneCallback(int fd);
 
