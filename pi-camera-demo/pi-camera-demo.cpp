@@ -2,6 +2,7 @@
 //
 
 #include "pi-camera-demo.h"
+#include "drm.hpp"
 
 #include <memory>
 #include <libcamera/base/span.h>
@@ -10,7 +11,6 @@
 #include <libcamera/control_ids.h>
 #include <libcamera/controls.h>
 #include <libcamera/framebuffer_allocator.h>
-#include <libcamera/property_ids.h>
 
 #include <libcamera/pixel_format.h>
 #include <cstring>
@@ -25,24 +25,14 @@
 #include "spdlog/spdlog.h"
 #include <libcamera/stream.h>
 #include <libcamera/libcamera.h>
-#include <libcamera/pixel_format.h>
 #include <cstring>
 
 #include <sys/mman.h>
 
 #include <memory>
-#include <mutex>
 #include <queue>
 #include <set>
 #include <string>
-
-#include <libcamera/base/span.h>
-#include <libcamera/camera.h>
-#include <libcamera/camera_manager.h>
-#include <libcamera/control_ids.h>
-#include <libcamera/controls.h>
-#include <libcamera/framebuffer_allocator.h>
-#include <libcamera/property_ids.h>
 
 // Default config
 constexpr int _width = 1280;
@@ -59,9 +49,16 @@ libcamera::FrameBufferAllocator* _frameBuffersAllocator;
 std::vector<std::unique_ptr<libcamera::Request>> _requests;
 libcamera::ControlList _controls = libcamera::controls::controls;
 
+DrmPreview* _preview;
+libcamera::Stream* _videoStream;
+
 int main()
 {
     check_camera_stack();
+
+    _preview = make_preview();
+    _preview->SetDoneCallback(&DoneCallback);
+
     _cameraManager = std::make_unique<libcamera::CameraManager>();
     const int cameraStartResult = _cameraManager->start();
     if (cameraStartResult)
@@ -78,6 +75,11 @@ int main()
     while(true){}
 
 	return 0;
+}
+
+void DoneCallback(int fd)
+{
+
 }
 
 
@@ -125,6 +127,8 @@ void ConfigureVideo()
 
 void StartCamera()
 {
+    _videoStream = _cameraConfiguration->at(0).stream();
+
      if (_camera->start(&_controls))
          throw std::runtime_error("failed to start camera");
      _controls.clear();
@@ -228,6 +232,22 @@ void RequestComplete(libcamera::Request* request)
         return;
     }
 
+    // -------------------
+
+
+    //if (item.stream->configuration().pixelFormat != libcamera::formats::YUV420)
+    //    throw std::runtime_error("Preview windows only support YUV420");
+
+    StreamInfo info = GetStreamInfo(_videoStream);
+    libcamera::FrameBuffer* buffer = request->buffers().at(_videoStream);
+    libcamera::Span span = Mmap(buffer)[0];
+
+    int fd = buffer->planes()[0].fd.get();
+    _preview->Show(fd, span, info);
+
+    // -------------------
+
+
     libcamera::Request::BufferMap buffers(std::move(request->buffers()));
 
     request->reuse();
@@ -269,4 +289,25 @@ void QueueRequest(CompletedRequest* completed_request)
 
     if (_camera->queueRequest(request) < 0)
         throw std::runtime_error("failed to queue request");
+}
+
+
+std::vector<libcamera::Span<uint8_t>> Mmap(libcamera::FrameBuffer* buffer)
+{
+    auto item = _cameraMappedBuffers.find(buffer);
+    if (item == _cameraMappedBuffers.end())
+        return {};
+    return item->second;
+}
+
+StreamInfo GetStreamInfo(libcamera::Stream const* stream)
+{
+	libcamera::StreamConfiguration const& cfg = stream->configuration();
+    StreamInfo info;
+    info.width = cfg.size.width;
+    info.height = cfg.size.height;
+    info.stride = cfg.stride;
+    info.pixel_format = stream->configuration().pixelFormat;
+    info.colour_space = stream->configuration().colorSpace;
+    return info;
 }

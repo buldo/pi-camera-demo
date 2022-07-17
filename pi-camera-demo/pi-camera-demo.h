@@ -6,6 +6,9 @@
 #include <iostream>
 #include <libcamera/request.h>
 #include <libcamera/controls.h>
+#include <libcamera/camera.h>
+
+#include "stream_info.hpp"
 
 // TODO: Reference additional headers your program requires here.
 static void check_camera_stack();
@@ -17,6 +20,10 @@ void MakeRequests();
 void RequestComplete(libcamera::Request* request);
 
 
+void DoneCallback(int fd);
+
+StreamInfo GetStreamInfo(libcamera::Stream const* stream);
+std::vector<libcamera::Span<uint8_t>> Mmap(libcamera::FrameBuffer* buffer);
 
 struct CompletedRequest
 {
