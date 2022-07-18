@@ -3,20 +3,17 @@
 
 #pragma once
 
-#include <iostream>
-#include <libcamera/request.h>
-#include <libcamera/controls.h>
 #include <libcamera/camera.h>
+#include <libcamera/controls.h>
+#include <libcamera/request.h>
 
-#include "stream_info.hpp"
+#include "CameraWrapper.hpp"
+
 
 // TODO: Reference additional headers your program requires here.
 static void check_camera_stack();
-
+void ProcessRequest(CameraWrapper* cameraWrapper, libcamera::Request* request);
 void DoneCallback(int fd);
-
-StreamInfo GetStreamInfo(libcamera::Stream const* stream);
-std::vector<libcamera::Span<uint8_t>> Mmap(libcamera::FrameBuffer* buffer);
 
 struct CompletedRequest
 {

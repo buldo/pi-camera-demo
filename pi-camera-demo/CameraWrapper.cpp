@@ -3,6 +3,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <utility>
+
 CameraWrapper::CameraWrapper(unsigned int width, unsigned int height)
 {
     m_width = width;
@@ -10,8 +12,9 @@ CameraWrapper::CameraWrapper(unsigned int width, unsigned int height)
     m_cameraManager = std::make_unique<libcamera::CameraManager>();
 }
 
-void CameraWrapper::Init()
+void CameraWrapper::Init(std::function<void(CameraWrapper*, libcamera::Request*)> processRequest)
 {
+    m_processRequest = std::move(processRequest);
     // Start camera manager
     m_cameraManager->start();
 
@@ -39,6 +42,26 @@ void CameraWrapper::StartCapture()
             throw std::runtime_error("Failed to queue request");
         }
     }
+}
+
+std::vector<libcamera::Span<uint8_t>> CameraWrapper::Mmap(libcamera::FrameBuffer* buffer)
+{
+    auto item = m_cameraMappedBuffers.find(buffer);
+    if (item == m_cameraMappedBuffers.end())
+    {
+        return {};
+    }
+    return item->second;
+}
+
+StreamInfo CameraWrapper::GetStreamInfo()
+{
+    return getStreamInfo(m_videoStream);
+}
+
+libcamera::Stream* CameraWrapper::GetVideoStream()
+{
+    return m_videoStream;
 }
 
 void CameraWrapper::initCamera()
@@ -141,31 +164,20 @@ void CameraWrapper::initRequests()
 
 void CameraWrapper::requestComplete(libcamera::Request* request)
 {
-    //spdlog::info("Requests completed");
-    //if (request->status() == libcamera::Request::RequestCancelled)
-    //{
-    //    return;
-    //}
+    spdlog::info("Requests completed");
+    if (request->status() == libcamera::Request::RequestCancelled)
+    {
+        return;
+    }
 
-    // -------------------
-
-
-    //if (item.stream->configuration().pixelFormat != libcamera::formats::YUV420)
-    //    throw std::runtime_error("Preview windows only support YUV420");
-
-    /*StreamInfo info = GetStreamInfo(_videoStream);
-    libcamera::FrameBuffer* buffer = request->buffers().at(_videoStream);
-    libcamera::Span span = Mmap(buffer)[0];
-
-    int fd = buffer->planes()[0].fd.get();
-    _preview->Show(fd, span, info);*/
+    m_processRequest(this, request);
 
     // -------------------
 
 
     //libcamera::Request::BufferMap buffers(std::move(request->buffers()));
 
-    request->reuse();
+    //request->reuse();
 
     //for (const auto& p : buffers)
     //{
@@ -185,3 +197,35 @@ void CameraWrapper::requestComplete(libcamera::Request* request)
     // ReadyRequestsQueue->enqueue(msg);
 }
 
+StreamInfo CameraWrapper::getStreamInfo(libcamera::Stream const* stream)
+{
+    auto const& cfg = stream->configuration();
+    StreamInfo info;
+    info.width = cfg.size.width;
+    info.height = cfg.size.height;
+    info.stride = cfg.stride;
+    info.pixel_format = stream->configuration().pixelFormat;
+    info.colour_space = stream->configuration().colorSpace;
+    return info;
+}
+
+//void QueueRequest(CompletedRequest* completed_request)
+//{
+//    libcamera::Request::BufferMap buffers(std::move(completed_request->buffers));
+//
+//    libcamera::Request* request = completed_request->request;
+//    delete completed_request;
+//    assert(request);
+//
+//
+//
+//
+//
+//    /*{
+//        std::lock_guard<std::mutex> lock(_controlMutex);
+//        request->controls() = std::move(_controls);
+//    }*/
+//
+//    if (_camera->queueRequest(request) < 0)
+//        throw std::runtime_error("failed to queue request");
+//}

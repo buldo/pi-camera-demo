@@ -5,25 +5,19 @@
 #include "drm.hpp"
 
 #include <memory>
-#include <libcamera/base/span.h>
 #include <libcamera/camera.h>
 #include <libcamera/camera_manager.h>
-#include <libcamera/control_ids.h>
-#include <libcamera/controls.h>
-#include <libcamera/framebuffer_allocator.h>
 
-#include <libcamera/pixel_format.h>
 #include <cstring>
 #include <fcntl.h>
 
 #include <sys/ioctl.h>
 
-#include <linux/videodev2.h>
-#include <unistd.h>
-#include "spdlog/spdlog.h"
-#include <libcamera/stream.h>
-#include <libcamera/libcamera.h>
 #include <cstring>
+#include <unistd.h>
+#include <libcamera/libcamera.h>
+#include <linux/videodev2.h>
+#include "spdlog/spdlog.h"
 
 #include <memory>
 #include <string>
@@ -41,17 +35,27 @@ int main()
 {
     check_camera_stack();
 
-    preview = make_preview();
-    preview->SetDoneCallback(&DoneCallback);
+    //preview = make_preview();
+    //preview->SetDoneCallback(&DoneCallback);
 
     camera = std::make_unique<CameraWrapper>(WIDTH, HEIGHT);
-    camera->Init();
+    camera->Init(ProcessRequest);
     camera->StartCapture();
 
     while(true){}
 
 	return 0;
 }
+
+void ProcessRequest(CameraWrapper* cameraWrapper, libcamera::Request* request)
+{
+    const auto buffer = request->buffers().at(cameraWrapper->GetVideoStream());
+    const auto& span = cameraWrapper->Mmap(buffer)[0];
+    const auto info = cameraWrapper->GetStreamInfo();
+    const auto fd = buffer->planes()[0].fd.get();
+    preview->Show(fd, span, info);
+}
+
 
 void DoneCallback(int fd)
 {
@@ -78,46 +82,4 @@ static void check_camera_stack()
 
     spdlog::error("ERROR: the system appears to be configured for the legacy camera stack");
     exit(-1);
-}
-
-//void QueueRequest(CompletedRequest* completed_request)
-//{
-//    libcamera::Request::BufferMap buffers(std::move(completed_request->buffers));
-//
-//    libcamera::Request* request = completed_request->request;
-//    delete completed_request;
-//    assert(request);
-//
-//
-//
-//
-//
-//    /*{
-//        std::lock_guard<std::mutex> lock(_controlMutex);
-//        request->controls() = std::move(_controls);
-//    }*/
-//
-//    if (_camera->queueRequest(request) < 0)
-//        throw std::runtime_error("failed to queue request");
-//}
-
-
-//std::vector<libcamera::Span<uint8_t>> Mmap(libcamera::FrameBuffer* buffer)
-//{
-//    auto item = _cameraMappedBuffers.find(buffer);
-//    if (item == _cameraMappedBuffers.end())
-//        return {};
-//    return item->second;
-//}
-
-StreamInfo GetStreamInfo(libcamera::Stream const* stream)
-{
-	libcamera::StreamConfiguration const& cfg = stream->configuration();
-    StreamInfo info;
-    info.width = cfg.size.width;
-    info.height = cfg.size.height;
-    info.stride = cfg.stride;
-    info.pixel_format = stream->configuration().pixelFormat;
-    info.colour_space = stream->configuration().colorSpace;
-    return info;
 }
