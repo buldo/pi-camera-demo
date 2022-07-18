@@ -27,6 +27,14 @@ void CameraWrapper::Init(std::function<void(CameraWrapper*, libcamera::Request*)
 
 void CameraWrapper::StartCapture()
 {
+    if (!m_controls.contains(libcamera::controls::FrameDurationLimits))
+    {
+
+            int64_t frame_time = 1000000 / 60; // in us
+            m_controls.set(libcamera::controls::FrameDurationLimits, { frame_time, frame_time });
+    }
+
+
     if (m_camera->start(&m_controls))
     {
         throw std::runtime_error("failed to start camera");
