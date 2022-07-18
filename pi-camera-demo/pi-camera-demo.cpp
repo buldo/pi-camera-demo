@@ -20,7 +20,6 @@
 #include "spdlog/spdlog.h"
 
 #include <memory>
-#include <string>
 #include "CameraWrapper.hpp"
 
 // Default config
@@ -31,12 +30,14 @@ DrmPreview* preview;
 
 std::unique_ptr<CameraWrapper> camera;
 
+std::map<int, libcamera::Request*> fdToRequestMap;
+
 int main()
 {
     check_camera_stack();
 
-    //preview = make_preview();
-    //preview->SetDoneCallback(&DoneCallback);
+    preview = new DrmPreview();
+    preview->SetDoneCallback(&DoneCallback);
 
     camera = std::make_unique<CameraWrapper>(WIDTH, HEIGHT);
     camera->Init(ProcessRequest);
@@ -53,13 +54,14 @@ void ProcessRequest(CameraWrapper* cameraWrapper, libcamera::Request* request)
     const auto& span = cameraWrapper->Mmap(buffer)[0];
     const auto info = cameraWrapper->GetStreamInfo();
     const auto fd = buffer->planes()[0].fd.get();
+    fdToRequestMap[fd] = request;
     preview->Show(fd, span, info);
 }
 
 
 void DoneCallback(int fd)
 {
-
+    camera->ReuseRequest(fdToRequestMap.at(fd));
 }
 
 

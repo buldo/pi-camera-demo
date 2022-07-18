@@ -22,14 +22,12 @@ private:
 	   void makeBuffer(int fd, size_t size, StreamInfo const& info, Buffer& buffer);
 	   void findCrtc();
 	   void findPlane();
-	   int drmfd_;
+	   int m_drmfd;
 	   int conId_;
 	   uint32_t crtcId_;
 	   int crtcIdx_;
 	   uint32_t planeId_;
 	   unsigned int out_fourcc_;
-	   unsigned int x_;
-	   unsigned int y_;
 	   unsigned int width_;
 	   unsigned int height_;
 	   unsigned int screen_width_;
@@ -77,5 +75,3 @@ public:
 protected:
 	DoneCallback done_callback_;
 };
-
-DrmPreview* make_preview();

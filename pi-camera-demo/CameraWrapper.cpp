@@ -64,6 +64,15 @@ libcamera::Stream* CameraWrapper::GetVideoStream()
     return m_videoStream;
 }
 
+void CameraWrapper::ReuseRequest(libcamera::Request * request)
+{
+    request->reuse(libcamera::Request::ReuseFlag::ReuseBuffers);
+    if (m_camera->queueRequest(request) < 0)
+    {
+        throw std::runtime_error("Failed to queue request");
+    }
+}
+
 void CameraWrapper::initCamera()
 {
     const auto cameraId = m_cameraManager->cameras()[0]->id();
@@ -171,30 +180,6 @@ void CameraWrapper::requestComplete(libcamera::Request* request)
     }
 
     m_processRequest(this, request);
-
-    // -------------------
-
-
-    //libcamera::Request::BufferMap buffers(std::move(request->buffers()));
-
-    //request->reuse();
-
-    //for (const auto& p : buffers)
-    //{
-    //    if (request->addBuffer(p.first, p.second) < 0)
-    //        throw std::runtime_error("failed to add buffer to request in QueueRequest");
-    //}
-    //
-
-    // CompletedRequestPtr payload(r, [this](CompletedRequest* cr) { this->queueRequest(cr); });
-    // {
-    //     std::lock_guard<std::mutex> lock(_completedRequestsMutex);
-    //     _completedRequests.insert(r);
-    // }
-    //
-    // auto msg = Msg(MsgType::RequestComplete, payload);
-    //
-    // ReadyRequestsQueue->enqueue(msg);
 }
 
 StreamInfo CameraWrapper::getStreamInfo(libcamera::Stream const* stream)
@@ -208,24 +193,3 @@ StreamInfo CameraWrapper::getStreamInfo(libcamera::Stream const* stream)
     info.colour_space = stream->configuration().colorSpace;
     return info;
 }
-
-//void QueueRequest(CompletedRequest* completed_request)
-//{
-//    libcamera::Request::BufferMap buffers(std::move(completed_request->buffers));
-//
-//    libcamera::Request* request = completed_request->request;
-//    delete completed_request;
-//    assert(request);
-//
-//
-//
-//
-//
-//    /*{
-//        std::lock_guard<std::mutex> lock(_controlMutex);
-//        request->controls() = std::move(_controls);
-//    }*/
-//
-//    if (_camera->queueRequest(request) < 0)
-//        throw std::runtime_error("failed to queue request");
-//}

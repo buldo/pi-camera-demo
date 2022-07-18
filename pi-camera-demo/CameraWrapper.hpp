@@ -33,6 +33,7 @@ public:
     std::vector<libcamera::Span<uint8_t>> Mmap(libcamera::FrameBuffer* buffer);
     StreamInfo GetStreamInfo();
     libcamera::Stream* GetVideoStream();
+    void ReuseRequest(libcamera::Request* request);
 
 private:
     void initCamera();
